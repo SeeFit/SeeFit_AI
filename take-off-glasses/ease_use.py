@@ -1,5 +1,5 @@
 import os
-import torch
+import torch, time
 import torch.nn as nn
 import numpy as np
 import argparse
@@ -38,7 +38,8 @@ def generate_results(args, device):
     DeGlass_Net = ResnetGenerator(input_nc=4, output_nc=3, norm_layer=norm).to(device)
 
     # load ckpt
-    ckpt = torch.load(args.ckpt_path)
+    # ckpt = torch.load(args.ckpt_path)
+    ckpt = torch.load(args.ckpt_path, map_location=torch.device('cpu')) # cpu만 사용
     DA_Net.load_state_dict(ckpt["DA"])
     DA_Net.eval()
     GlassMask_Net.load_state_dict(ckpt["GM"])
@@ -61,6 +62,8 @@ def generate_results(args, device):
     img_list = os.listdir(args.input_dir)
     with torch.no_grad():
         for img_name in img_list:
+            # 시작 시간 기록
+            start_time = time.time()
             img = Image.open(os.path.join(args.input_dir, img_name)).convert('RGB')
             img = transform(img)
             img = torch.unsqueeze(img, 0)
@@ -76,21 +79,38 @@ def generate_results(args, device):
             dg_in = torch.cat([ds_out_masked, gmask], dim=1)
             dg_out = DeGlass_Net(dg_in)
 
+            # 종료 시간 기록
+            end_time = time.time()
+
+            # 실행 시간 계산
+            execution_time = end_time - start_time
+            print(f"Image Execution time: {execution_time:.4f} seconds")
+
             savetensor2img(dg_out, os.path.join(args.save_dir, img_name))
             savetensor2img(gmask * 2 - 1, os.path.join(args.save_dir, img_name[:-4] + '_gmask.png'))
             savetensor2img(smask * 2 - 1, os.path.join(args.save_dir, img_name[:-4] + '_smask.png'))
 
 
 if __name__ == '__main__':
-    device = "cuda"
+    # device = "cuda"
+    device = "cpu"
     parser = argparse.ArgumentParser()
     parser.add_argument("--input_dir", type=str, default="./data", help="input dir")
     parser.add_argument("--save_dir", type=str, default="./results", help="result dir")
-    parser.add_argument("--img_size", type=int, default=256, help="image sizes for the model")
+    parser.add_argument("--img_size", type=int, default=512, help="image sizes for the model")
     parser.add_argument("--ckpt_path", type=str, default="./ckpt/pretrained.pt", help="checkpoint of the model")
+    
+    # 시작 시간 기록
+    start_time = time.time()
     args = parser.parse_args()
     print("Call with args:")
     print(args)
 
     smart_mkdir(args.save_dir)
     generate_results(args, device)
+    # 종료 시간 기록
+    end_time = time.time()
+
+    # 실행 시간 계산
+    execution_time = end_time - start_time
+    print(f"Total Execution time: {execution_time:.4f} seconds")
