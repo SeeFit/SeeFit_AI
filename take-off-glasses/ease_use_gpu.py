@@ -38,8 +38,7 @@ def generate_results(args, device):
     DeGlass_Net = ResnetGenerator(input_nc=4, output_nc=3, norm_layer=norm).to(device)
 
     # load ckpt
-    # ckpt = torch.load(args.ckpt_path)
-    ckpt = torch.load(args.ckpt_path, map_location=torch.device('cpu')) # cpu만 사용
+    ckpt = torch.load(args.ckpt_path)
     DA_Net.load_state_dict(ckpt["DA"])
     DA_Net.eval()
     GlassMask_Net.load_state_dict(ckpt["GM"])
@@ -86,14 +85,23 @@ def generate_results(args, device):
             execution_time = end_time - start_time
             print(f"Image Execution time: {execution_time:.4f} seconds")
 
-            savetensor2img(dg_out, os.path.join(args.save_dir, img_name))
-            savetensor2img(gmask * 2 - 1, os.path.join(args.save_dir, img_name[:-4] + '_gmask.png'))
-            savetensor2img(smask * 2 - 1, os.path.join(args.save_dir, img_name[:-4] + '_smask.png'))
+            # Create a folder with the image name without extension
+            img_folder_name = img_name.rsplit('.', 1)[0]  # This will get the filename without the extension
+            print("img_folder_name:", img_folder_name)
+            
+            # Use the specific directory path you provided
+            base_save_dir = "D:\\SeeFit_AI\\take-off-glasses\\results"
+            img_save_dir = os.path.join(base_save_dir, img_folder_name)
+            smart_mkdir(img_save_dir)
+            
+            savetensor2img(dg_out, os.path.join(img_save_dir, img_name))
+            savetensor2img(gmask * 2 - 1, os.path.join(img_save_dir, img_name[:-4] + '_gmask.png'))
+            savetensor2img(smask * 2 - 1, os.path.join(img_save_dir, img_name[:-4] + '_smask.png'))
 
 
 if __name__ == '__main__':
-    # device = "cuda"
-    device = "cpu"
+    device = "cuda"
+    # device = "cpu"
     parser = argparse.ArgumentParser()
     parser.add_argument("--input_dir", type=str, default="./data", help="input dir")
     parser.add_argument("--save_dir", type=str, default="./results", help="result dir")
